@@ -381,5 +381,4 @@ class NagiosAPI(Flask):
 if __name__ == '__main__':
     app = NagiosAPI(__name__)
     logging.info(" * starting restlos V%s" % (VERSION, ))
-
     app.run(host=config['host'], port=config['port'])
