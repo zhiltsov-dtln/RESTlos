@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
 from flask import Flask, request, render_template, jsonify, abort
@@ -8,12 +8,12 @@ from flask.views import MethodView
 from werkzeug.exceptions import HTTPException, InternalServerError
 from werkzeug.exceptions import default_exceptions, BadRequest
 
-from utils import Config
+from utils.utils import Config
 from utils.authentication import Authentify
 
 from subprocess import check_output, CalledProcessError
 
-from pynag import Model, Parsers
+from pynag import Model, Control, Parsers
 from json import dumps
 from cgi import escape
 
@@ -22,6 +22,7 @@ import logging
 import logging.config
 
 config = Config(os.path.join(os.path.dirname(__file__), 'config.json'))
+
 VERSION="0.3"
 
 class JSONHTTPException(HTTPException):
@@ -58,7 +59,7 @@ class ApiEndpoints(dict):
     def __init__(self):
         # create a map of valid endpoints/arguments
         for endpoint in Model.all_attributes.object_definitions.keys():
-            self[endpoint] = Model.all_attributes.object_definitions[endpoint].keys()
+            self[endpoint] = list(Model.all_attributes.object_definitions[endpoint].keys())
             self[endpoint] += Model.all_attributes.object_definitions["any"]
         del self["any"]
 
@@ -84,7 +85,7 @@ class ApiEndpoints(dict):
         return self.endpoint_keys[endpoint]
 
     def validate(self, endpoint, data={}):
-        for attr in data.keys():
+        for attr in list(data):
             if not attr.startswith('_') and attr not in self[endpoint]:
                 return {404: "unknown attribute: %s" % (attr, )}
             if attr == self.endpoint_keys[endpoint]:
@@ -108,8 +109,8 @@ class NagiosControlView(MethodView):
         MethodView.__init__(self, *args, **kwargs)
 
         try:
-            self.command_file = Model.Control.Command.find_command_file(config['nagios_main_cfg'])
-        except Exception, err:
+            self.command_file = Control.Command.find_command_file(config['nagios_main_cfg'])
+        except Exception as err:
             abort(500, 'unable to locate command file: %s' % (str(err), ))
 
         self.arguments = ['verify', 'restart']
@@ -117,16 +118,15 @@ class NagiosControlView(MethodView):
     def _format(self, data):
         result = {'Error': [], 'Warning': [], 'Total Errors': [], 'Total Warnings': []}
         for line in data.split('\n'):
-            for key in result.keys():
+            for key in result:
                 if line.upper().startswith(key.upper()):
                     result[key].append(line[len(key)+1:].strip())
 
-        for key in result.keys():
+        for key in list(result):
             if len(result[key]) == 1:
                 result[key] = result[key][0]
             if not result[key]:
                 del result[key]
-
         return result
 
     def _verify(self):
@@ -134,37 +134,35 @@ class NagiosControlView(MethodView):
             if config['sudo']:
                 output = check_output(['sudo', config['nagios_bin'], '-v', config['nagios_main_cfg']])
             else:
-                print [config['nagios_bin'], '-v', config['nagios_main_cfg']]
-                output = check_output([config['nagios_bin'], '-v', config['nagios_main_cfg']])
+                output = check_output([config['nagios_bin'], '-v', config['nagios_main_cfg']], universal_newlines=True)
             returncode = 0
-        except CalledProcessError, err:
+        except CalledProcessError as err:
             output = err.output
             returncode = err.returncode
-        except Exception, err:
+        except Exception as err:
             output = str(err)
             returncode = 255
-
         result = self._format(output)
 
         return {'output': result if result else output, 'returncode': returncode}
 
     def _restart(self):
         logging.warn("[audit] [user: %s] triggered the restart command" % (request.authorization.username), )
-        Model.Control.Command.restart_program(command_file=self.command_file)
+        Control.Command.restart_program(command_file=self.command_file)
         return { 'result': 'successfully sent command to command file' }
 
     def post(self):
-        if len(request.args.keys()) != 1:
+        if len(list(request.args.keys())) != 1:
             abort(400, 'control endpoint accepts exactly ONE argument')
 
-        action = request.args.keys()[0]
+        action = list(request.args.keys())[0]
 
         if action not in self.arguments:
             abort(400, 'invalid argument: %s' % (escape(action), ))
 
         try:
             result = getattr(self,'_' + action)()
-        except Exception, err:
+        except Exception as err:
             abort(500, 'unable to execute action %s: %s' % (action, str(err)))
         else:
             return jsonify(result)
@@ -190,8 +188,8 @@ class NagiosObjectView(MethodView):
 
     def _summary(self, results):
         return {
-            "succeeded": len([r for r in results if r.has_key(200) ]), 
-            "failed": len([r for r in results if not r.has_key(200) ]), 
+            "succeeded": len([r for r in results if 200 in r]), 
+            "failed": len([r for r in results if not 200 in r]), 
             "total": len(results)
         }
 
@@ -204,7 +202,7 @@ class NagiosObjectView(MethodView):
         - key=expr
         """
         query = {}
-        for key, value in arguments.iteritems():
+        for key, value in arguments.items():
             if value.startswith('*') and value.endswith('*'):
                 query_type = '__contains'
             elif value.startswith('*'):
@@ -220,15 +218,15 @@ class NagiosObjectView(MethodView):
 
     def get(self):
         validate = self.endpoints.validate(self.endpoint, request.args)
-        if not validate.has_key(200):
-            abort(*validate.items()[0])
+        if not 200 in validate:
+            abort(*list(validate.items())[0])
         endpoint_objects = getattr(Model, self.endpoint.capitalize()).objects
 
         query = self._build_query(request.args)
 
         try:
             result = [ obj['meta']['defined_attributes'] for obj in endpoint_objects.filter(**query)]
-        except IOError, err:
+        except IOError as err:
             abort(500, "error opening config files: %s" % (str(err), ))
         except:
             abort(500)
@@ -237,15 +235,15 @@ class NagiosObjectView(MethodView):
 
     def delete(self):
         validate = self.endpoints.validate(self.endpoint, request.args)
-        if not validate.has_key(200):
-            abort(*validate.items()[0])
+        if not 200 in validate:
+            abort(*list(validate.items())[0])
         endpoint_objects = getattr(Model, self.endpoint.capitalize()).objects
 
         query = self._build_query(request.args)
 
         try:
             objects = endpoint_objects.filter(**query)
-        except IOError, err:
+        except IOError as err:
             abort(500, "error opening config files: %s" % (str(err), ))
         except:
             abort(500)
@@ -255,7 +253,7 @@ class NagiosObjectView(MethodView):
         for obj in objects:
             try:
                 obj.delete()
-            except Exception, err:
+            except Exception as err:
                 results.append({ 500: "unable to delete %s object %s: %s" % (self.endpoint, obj[unique_key], str(err)) })
                 logging.debug("[audit] [user: %s] failed to delete %s object %s: %s" % (self.username, self.endpoint, obj[unique_key], str(err)))
             else:
@@ -276,7 +274,7 @@ class NagiosObjectView(MethodView):
             return jsonify(message='no json received. you need to set your content-type to application/json.')
 
         if type(data) == list:
-            results = map(self._save_or_update, data)
+            results = list(map(self._save_or_update, data))
         else:
             results = [self._save_or_update(data)]
 
@@ -296,7 +294,7 @@ class NagiosObjectView(MethodView):
                 query = { unique_key: item[unique_key] }
                 try:
                     endpoint_object = getattr(Model, self.endpoint.capitalize()).objects.filter(**query)
-                except IOError, err:
+                except IOError as err:
                     abort(500, "error opening config files: %s" % (str(err), ))
                 except:
                     abort(500)
@@ -309,15 +307,16 @@ class NagiosObjectView(MethodView):
                 return { 500: 'required key for %s object not set: %s' % (self.endpoint, unique_key) }
 
             validate = self.endpoints.validate(self.endpoint, item)
-            if not validate.has_key(200):
+            if not 200 in validate:
                 return validate
 
-            for key, value in item.iteritems():
+            for key, value in item.items():
                 endpoint_object.set_attribute(key, value)
 
             try:
                 endpoint_object.save()
-            except Exception, err:
+            except Exception as err:
+ 
                 logging.debug("[audit] [user: %s] failed to store %s object %s: %s" % (self.username, self.endpoint, item[unique_key], str(err)))
                 return { 500: 'unable to save %s object %s: %s' % (self.endpoint, item[unique_key], str(err)) }
 
@@ -370,7 +369,7 @@ class NagiosAPI(Flask):
             self.add_url_rule(endpoint, name, self.__help)
 
     def __register_error_handler(self):
-        for code in default_exceptions.iterkeys():
+        for code in default_exceptions.keys():
             self.errorhandler(code)(self.__error_handler)
 
     def __register_endpoints(self):

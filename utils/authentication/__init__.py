@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
 import logging
@@ -26,7 +26,7 @@ class AuthDict(object):
         self.credentials = credentials
 
     def authenticate(self, username, password):
-        return username in self.credentials.keys() and self.credentials[username] == sha256(password).hexdigest()
+        return username in self.credentials.keys() and self.credentials[username] == sha256(str(password).encode('utf-8')).hexdigest()
 
 
 class Authentify(object):
@@ -58,7 +58,7 @@ class Authentify(object):
         else:
             try:
                 self.auth = globals()[config['provider']](**config['params'])
-            except Exception, err:
+            except Exception as err:
                 logging.error("unable to load authentication provider %s (%s)." % (config['provider'], str(err)))
                 logging.error("fallback to default dict authentication provider!")
                 self.auth = AuthDict()

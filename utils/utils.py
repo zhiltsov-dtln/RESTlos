@@ -1,11 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
 import logging
 import logging.config
 import logging.handlers
 
-import handlers as restlos_handlers
+import utils.handlers as restlos_handlers
 
 from copy import deepcopy
 from json import loads
@@ -17,7 +17,7 @@ def dict_merge(a, b):
         return b
 
     result = deepcopy(a)
-    for k, v in b.iteritems():
+    for k, v in b.items():
         if k in result and isinstance(result[k], dict):
                 result[k] = dict_merge(result[k], v)
         else:
@@ -36,12 +36,12 @@ class Config(dict):
 
     def _default(self):
         return {
-            'nagios_main_cfg': '/etc/nagios/nagios.cfg',
+            'nagios_main_cfg': None, # By default, try to autodetect nagios.cfg location
             'nagios_bin': '/usr/sbin/nagios',
             'sudo': False,
             'output_dir': '/etc/nagios/objects/api',
             'port': 5000,
-            'host': "127.0.0.1",
+            'host': "0.0.0.0",
             'auth': {
                 'provider': 'AuthDict',
                 'params': {}
@@ -78,7 +78,7 @@ class Config(dict):
     def _load(self, cfg_file):
         try: 
             self.update(dict_merge(self, loads(open(cfg_file, 'r').read())))
-        except Exception, err: 
+        except Exception as err: 
             logging.warn("unable to open config file %s: %s - using defaults" % (cfg_file, str(err)))
 
 
