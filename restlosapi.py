@@ -14,6 +14,7 @@ from utils.authentication import Authentify
 from subprocess import check_output, CalledProcessError
 
 from pynag import Model, Control, Parsers
+from pynag.Control import daemon
 from json import dumps
 from cgi import escape
 
@@ -113,7 +114,7 @@ class NagiosControlView(MethodView):
         except Exception as err:
             abort(500, 'unable to locate command file: %s' % (str(err), ))
 
-        self.arguments = ['verify', 'restart']
+        self.arguments = ['verify', 'restart', 'reload']
 
     def _format(self, data):
         result = {'Error': [], 'Warning': [], 'Total Errors': [], 'Total Warnings': []}
@@ -150,6 +151,12 @@ class NagiosControlView(MethodView):
         logging.warn("[audit] [user: %s] triggered the restart command" % (request.authorization.username), )
         Control.Command.restart_program(command_file=self.command_file)
         return { 'result': 'successfully sent command to command file' }
+
+    def _reload(self):
+        logging.warn("[audit] [user: %s] triggered the reload command" % (request.authorization.username), )
+        d = daemon() 
+        d.restart()
+        return { 'result': 'successfully reload Nagios' }
 
     def post(self):
         if len(list(request.args.keys())) != 1:
@@ -381,5 +388,4 @@ class NagiosAPI(Flask):
 if __name__ == '__main__':
     app = NagiosAPI(__name__)
     logging.info(" * starting restlos V%s" % (VERSION, ))
-
     app.run(host=config['host'], port=config['port'])
