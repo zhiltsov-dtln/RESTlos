@@ -238,7 +238,7 @@ class NagiosObjectView(MethodView):
         except:
             abort(500)
         else:
-            return Response(dumps(result, indent=None if request.is_xhr else 2), mimetype='application/json')
+            return Response(dumps(result, indent=2), mimetype='application/json')
 
     def delete(self):
         validate = self.endpoints.validate(self.endpoint, request.args)
