@@ -155,7 +155,7 @@ class NagiosControlView(MethodView):
     def _reload(self):
         logging.warn("[audit] [user: %s] triggered the reload command" % (request.authorization.username), )
         d = daemon() 
-        d.restart()
+        d.reload()
         return { 'result': 'successfully reload Nagios' }
 
     def post(self):
