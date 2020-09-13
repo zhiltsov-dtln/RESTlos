@@ -1,7 +1,9 @@
 {
     "nagios_main_cfg": "/etc/nagios/nagios.cfg",
     "nagios_bin": "/usr/sbin/nagios",
-    "output_dir": "/etc/nagios/objects/rest",
+    "output_dir": "/etc/nagios/objects/incoming",
+    "systemd_service_path": "/etc/systemd/system",
+    "service_name": "nagios",
     "sudo": false,
     "port": 5000,
 	"host": "0.0.0.0",
