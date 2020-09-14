@@ -59,10 +59,8 @@ class ApiEndpoints(dict):
 
     def __init__(self):
         # create a map of valid endpoints/arguments
-        for endpoint in Model.all_attributes.object_definitions.keys():
+        for endpoint in Model.string_to_class.keys():
             self[endpoint] = list(Model.all_attributes.object_definitions[endpoint].keys())
-            self[endpoint] += Model.all_attributes.object_definitions["any"]
-        del self["any"]
 
         if not self.main_cfg_values:
             parser = Parsers.config(config['nagios_main_cfg'])
@@ -228,7 +226,7 @@ class NagiosObjectView(MethodView):
         validate = self.endpoints.validate(self.endpoint, request.args)
         if not 200 in validate:
             abort(*list(validate.items())[0])
-        endpoint_objects = getattr(Model, self.endpoint.capitalize()).objects
+        endpoint_objects = getattr(Model, Model.string_to_class[self.endpoint].__name__).objects
 
         query = self._build_query(request.args)
 
@@ -245,7 +243,7 @@ class NagiosObjectView(MethodView):
         validate = self.endpoints.validate(self.endpoint, request.args)
         if not 200 in validate:
             abort(*list(validate.items())[0])
-        endpoint_objects = getattr(Model, self.endpoint.capitalize()).objects
+        endpoint_objects = getattr(Model, Model.string_to_class[self.endpoint].__name__).objects
 
         query = self._build_query(request.args)
 
@@ -301,7 +299,7 @@ class NagiosObjectView(MethodView):
             if unique_key in item.keys():
                 query = { unique_key: item[unique_key] }
                 try:
-                    endpoint_object = getattr(Model, self.endpoint.capitalize()).objects.filter(**query)
+                    endpoint_object = getattr(Model, Model.string_to_class[self.endpoint].__name__).objects.filter(**query)
                 except IOError as err:
                     abort(500, "error opening config files: %s" % (str(err), ))
                 except:
@@ -310,7 +308,7 @@ class NagiosObjectView(MethodView):
                 if endpoint_object:
                     endpoint_object = endpoint_object[0]
                 else:
-                    endpoint_object = getattr(Model, self.endpoint.capitalize())()
+                    endpoint_object = getattr(Model, Model.string_to_class[self.endpoint].__name__)()
             else:
                 return { 500: 'required key for %s object not set: %s' % (self.endpoint, unique_key) }
 
