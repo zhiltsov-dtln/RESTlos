@@ -2,14 +2,18 @@
     "nagios_main_cfg": "/etc/nagios/nagios.cfg",
     "nagios_bin": "/usr/sbin/nagios",
     "output_dir": "/etc/nagios/objects/incoming",
-    "systemd_service_path": "/etc/systemd/system",
+    "systemd_service_path": "/usr/lib/systemd/system",
     "service_name": "nagios",
     "sudo": false,
     "port": 5000,
 	"host": "0.0.0.0",
     "auth": {
         "provider": "AuthDict",
-        "params": {}
+        "params": {
+            "credentials": {
+                "admin": "c9bd62c1f342c037dd39f9e9ab3d8b35f107983f4b4e113affe40e6a554bbdcc"
+            }
+        }    
     },
     "logging": {
         "version": 1,
