@@ -1,0 +1,17 @@
+[Unit]
+Description=uWSGI
+After=syslog.target
+
+[Service]
+WorkingDirectory=/opt/nagrest
+ExecStart=/usr/sbin/uwsgi --ini /opt/nagrest/contrib/uwsgi.ini
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStop=/bin/kill -9 $MAINPID
+# Requires systemd version 211 or newer
+Restart=always
+KillSignal=SIGQUIT
+Type=notify
+NotifyAccess=all
+
+[Install]
+WantedBy=multi-user.target
