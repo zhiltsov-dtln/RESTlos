@@ -4,7 +4,13 @@ After=syslog.target
 
 [Service]
 WorkingDirectory=/opt/nagrest
-ExecStart=/usr/sbin/uwsgi --ini /opt/nagrest/contrib/uwsgi.ini
+#WorkingDirectory=/opt/instance1/nagrest
+#WorkingDirectory=/opt/instance2/nagrest
+
+ExecStart=/usr/local/bin/uwsgi --ini /opt/nagrest/contrib/uwsgi.ini
+#ExecStart=/usr/local/bin/uwsgi --ini /opt/instance1/nagrest/contrib/uwsgi.ini
+#ExecStart=/usr/local/bin/uwsgi --ini /opt/instance2/nagrest/contrib/uwsgi.ini
+
 ExecReload=/bin/kill -HUP $MAINPID
 ExecStop=/bin/kill -9 $MAINPID
 # Requires systemd version 211 or newer
